@@ -3,12 +3,12 @@ import java.awt.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 class GraphView extends JPanel {
     private Graph graph;
     private Map<Integer, Integer> matchingEdges;
     private List<Integer> augmentingPath;
+    private List<Integer> blossomVertices;  // Add this to store blossom vertices
     private Map<Integer, Color> vertexColors;
 
     public GraphView(Graph graph) {
@@ -22,6 +22,7 @@ class GraphView extends JPanel {
             this.matchingEdges.clear();
         }
         this.augmentingPath = null;
+        this.blossomVertices = null;  // Reset blossom vertices
         this.vertexColors.clear();
         repaint();
     }
@@ -33,6 +34,11 @@ class GraphView extends JPanel {
 
     public void setAugmentingPath(List<Integer> augmentingPath) {
         this.augmentingPath = augmentingPath;
+        repaint();
+    }
+
+    public void highlightBlossom(List<Integer> blossomVertices) {
+        this.blossomVertices = blossomVertices;
         repaint();
     }
 
@@ -85,6 +91,20 @@ class GraphView extends JPanel {
                 }
                 g2.drawLine(p.x, p.y, q.x, q.y);
             }
+        }
+
+        // Highlight blossom
+        if (blossomVertices != null) {
+            g2.setColor(Color.BLUE);
+            g2.setStroke(new BasicStroke(2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 0, new float[]{10}, 0));
+            for (int i = 0; i < blossomVertices.size() - 1; i++) {
+                Vertex u = graph.getVertex(blossomVertices.get(i));
+                Vertex v = graph.getVertex(blossomVertices.get(i + 1));
+                g2.drawLine(u.getPosition().x, u.getPosition().y, v.getPosition().x, v.getPosition().y);
+            }
+            Vertex first = graph.getVertex(blossomVertices.get(0));
+            Vertex last = graph.getVertex(blossomVertices.get(blossomVertices.size() - 1));
+            g2.drawLine(first.getPosition().x, first.getPosition().y, last.getPosition().x, last.getPosition().y);
         }
     }
 

@@ -3,123 +3,127 @@ import java.util.*;
 public class EdmondsBlossomAlgorithm {
     private Graph graph;
     private Map<Integer, Integer> matching;
+    private Set<Integer> free;
     private Map<Integer, Integer> label;
     private Map<Integer, Integer> parent;
     private Queue<Integer> queue;
-    private int root;
-    private Set<Integer> visited;
-    private static final int MAX_ITERATIONS = 1000;
+    private GraphView graphView;
 
-    public EdmondsBlossomAlgorithm(Graph graph) {
+    public EdmondsBlossomAlgorithm(Graph graph, GraphView graphView) {
         this.graph = graph;
         this.matching = new HashMap<>();
+        this.free = new HashSet<>();
         this.label = new HashMap<>();
         this.parent = new HashMap<>();
         this.queue = new LinkedList<>();
-        this.visited = new HashSet<>();
+        this.graphView = graphView;
     }
 
     public Map<Integer, Integer> findMaximumMatching() {
-        matching.clear();
-        boolean improvementMade;
-        do {
-            improvementMade = false;
-            for (int v : graph.getVertices()) {
-                if (!matching.containsKey(v)) {
-                    System.out.println("Starting new alternating tree from vertex " + v);
-                    if (growAlternatingTree(v)) {
-                        improvementMade = true;
-                        break;
-                    }
+        try {
+            initialize();
+            while (!free.isEmpty()) {
+                int root = free.iterator().next();
+                if (bfs(root)) {
+                    free.remove(root);
+                } else {
+                    free.remove(root);
                 }
             }
-        } while (improvementMade);
-
-        // Remove duplicate entries
-        Map<Integer, Integer> cleanedMatching = new HashMap<>();
-        for (Map.Entry<Integer, Integer> entry : matching.entrySet()) {
-            if (!cleanedMatching.containsKey(entry.getValue())) {
-                cleanedMatching.put(entry.getKey(), entry.getValue());
-            }
+        } catch (Exception e) {
+            System.err.println("Error in findMaximumMatching: " + e.getMessage());
+            e.printStackTrace();
         }
-
-        System.out.println("Final matching: " + cleanedMatching);
-        return cleanedMatching;
+        return matching;
     }
 
-    private boolean growAlternatingTree(int root) {
-        this.root = root;
+    private void initialize() {
+        matching.clear();
+        free.addAll(graph.getVertices());
+        updateVisualization();
+    }
+
+    private boolean bfs(int root) {
         label.clear();
         parent.clear();
         queue.clear();
-        visited.clear();
 
         for (int v : graph.getVertices()) {
-            label.put(v, 0);
+            label.put(v, v == root ? 0 : -1);
         }
 
-        label.put(root, 1);
         queue.offer(root);
-        visited.add(root);
-
-        int iterations = 0;
-        while (!queue.isEmpty() && iterations < MAX_ITERATIONS) {
-            iterations++;
+        while (!queue.isEmpty()) {
             int v = queue.poll();
-            System.out.println("Processing vertex " + v);
-
             for (int u : graph.getNeighbors(v)) {
-                System.out.println("  Examining neighbor " + u);
-                if (label.get(u) == 0) {
-                    if (!matching.containsKey(u) && u != root) {
-                        System.out.println("  Augmenting path found");
-                        augmentPath(v, u);
-                        return true;
-                    } else if (matching.containsKey(u)) {
-                        int w = matching.get(u);
-                        parent.put(w, v);
-                        label.put(u, 2);
-                        label.put(w, 1);
-                        if (!visited.contains(w)) {
-                            queue.offer(w);
-                            visited.add(w);
-                            System.out.println("  Adding " + w + " to queue");
-                        }
-                    }
-                } else if (label.get(u) == 1 && u != parent.getOrDefault(v, -1) && u != v) {
-                    System.out.println("  Blossom found between " + u + " and " + v);
-                    int lca = findLowestCommonAncestor(u, v);
-                    if (lca != -1) {
-                        blossomShrink(u, v, lca);
-                        blossomShrink(v, u, lca);
-                    }
+                if (findOrGrowAugmentingPath(v, u)) {
+                    return true;
                 }
             }
         }
-        if (iterations >= MAX_ITERATIONS) {
-            System.out.println("Max iterations reached. Terminating.");
+        return false;
+    }
+
+    private boolean findOrGrowAugmentingPath(int v, int u) {
+        if (label.get(u) == null) {
+            System.err.println("Error: Vertex " + u + " not found in label map");
+            return false;
+        }
+
+        if (label.get(u) == -1) {
+            if (!matching.containsKey(u)) {
+                augmentPath(v, u);
+                return true;
+            } else {
+                int w = matching.get(u);
+                label.put(u, 1);
+                label.put(w, 0);
+                parent.put(w, v);
+                parent.put(u, w);
+                queue.offer(w);
+            }
+        } else if (label.get(u) == 0) {
+            Integer parentV = parent.get(v);
+            if (parentV == null || !parentV.equals(u)) {
+                int lca = findLowestCommonAncestor(v, u);
+                if (lca != -1) {
+                    blossomShrink(v, u, lca);
+                    blossomShrink(u, v, lca);
+                }
+            }
         }
         return false;
     }
 
     private void augmentPath(int v, int u) {
-        System.out.println("Augmenting path:");
         List<Integer> path = new ArrayList<>();
         int current = v;
-        while (current != root) {
+        while (current != -1) {
             path.add(current);
-            current = parent.get(current);
+            current = parent.getOrDefault(current, -1);
         }
-        path.add(root);
+        Collections.reverse(path);
         path.add(u);
+
+        graphView.setAugmentingPath(path);
+        updateVisualization();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
         for (int i = 0; i < path.size() - 1; i += 2) {
             int x = path.get(i);
             int y = path.get(i + 1);
             matching.put(x, y);
             matching.put(y, x);
-            System.out.println(x + " - " + y);
+            free.remove(x);
+            free.remove(y);
         }
+
+        graphView.setAugmentingPath(null);
+        updateVisualization();
     }
 
     private int findLowestCommonAncestor(int u, int v) {
@@ -136,23 +140,42 @@ public class EdmondsBlossomAlgorithm {
     }
 
     private void blossomShrink(int u, int v, int lca) {
-        Set<Integer> blossomVertices = new HashSet<>();
+        List<Integer> blossom = new ArrayList<>();
         while (u != lca) {
-            blossomVertices.add(u);
-            u = parent.getOrDefault(u, -1);
+            blossom.add(u);
+            u = parent.getOrDefault(u, lca);
         }
+        blossom.add(lca);
+        Collections.reverse(blossom);
         while (v != lca) {
-            blossomVertices.add(v);
-            v = parent.getOrDefault(v, -1);
+            blossom.add(v);
+            v = parent.getOrDefault(v, lca);
         }
 
-        for (int vertex : blossomVertices) {
-            label.put(vertex, 2);
-            if (!visited.contains(vertex)) {
+        graphView.highlightBlossom(blossom);
+        updateVisualization();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        for (int vertex : blossom) {
+            if (vertex != lca) {
+                label.put(vertex, 1);
                 queue.offer(vertex);
-                visited.add(vertex);
             }
-            parent.put(vertex, lca);
+        }
+        graphView.highlightBlossom(null);
+    }
+
+    private void updateVisualization() {
+        graphView.setMatchingEdges(matching);
+        graphView.repaint();
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 }

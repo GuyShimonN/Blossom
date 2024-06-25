@@ -180,32 +180,23 @@ public class GraphGUI extends JFrame {
     private void findMatching() {
         new Thread(() -> {
             System.out.println("Finding maximum matching...");
-            EdmondsBlossomAlgorithm eba = new EdmondsBlossomAlgorithm(graph);
+            EdmondsBlossomAlgorithm eba = new EdmondsBlossomAlgorithm(graph, graphView);
             System.out.println("v ");
             Map<Integer, Integer> matching = eba.findMaximumMatching();
-            int maxMatching = matching.size();
-            for (Map.Entry<Integer, Integer> entry : matching.entrySet()) {
-                System.out.println(entry.getKey() + " - " + entry.getValue());
-            }
+            int maxMatching = matching.size() / 2; // Divide by 2 because each edge is counted twice
             updateStatusLabel("Maximum Matching: " + maxMatching);
 
             StringBuilder resultMessage = new StringBuilder("Matching Pairs:\n");
-            Map<Integer, Integer> matchingEdges = new HashMap<>();
             for (Map.Entry<Integer, Integer> entry : matching.entrySet()) {
-                resultMessage.append(entry.getKey()).append(" - ").append(entry.getValue()).append("\n");
-                matchingEdges.put(entry.getKey(), entry.getValue());
-                matchingEdges.put(entry.getValue(), entry.getKey());
-                graphView.setMatchingEdges(matchingEdges);
-                try {
-                    Thread.sleep(1000); // Delay for visualization
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+                if (entry.getKey() < entry.getValue()) { // To avoid duplicate pairs
+                    resultMessage.append(entry.getKey()).append(" - ").append(entry.getValue()).append("\n");
                 }
             }
             resultMessage.append("\nMaximum Matching: ").append(maxMatching);
             JOptionPane.showMessageDialog(this, resultMessage.toString(), "Matching Result", JOptionPane.INFORMATION_MESSAGE);
         }).start();
     }
+
 
     private void clearBoard() {
         graph = new Graph();
