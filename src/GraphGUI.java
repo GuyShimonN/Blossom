@@ -33,23 +33,27 @@ public class GraphGUI extends JFrame {
         statusLabel = new JLabel("Ready to add vertices or edges.");
         add(statusLabel, BorderLayout.SOUTH);
 
-        JPanel buttonPanel = new JPanel();
+        JPanel topButtonPanel = new JPanel();
         addVertexButton = new JButton("Add Vertex");
         addEdgeButton = new JButton("Add Edge");
         removeVertexButton = new JButton("Remove Vertex");
         removeEdgeButton = new JButton("Remove Edge");
+
+        topButtonPanel.add(addVertexButton);
+        topButtonPanel.add(addEdgeButton);
+        topButtonPanel.add(removeVertexButton);
+        topButtonPanel.add(removeEdgeButton);
+        add(topButtonPanel, BorderLayout.NORTH);
+
+        JPanel bottomButtonPanel = new JPanel();
         setGraphButton = new JButton("Set Graph");
         findMatchingButton = new JButton("Find Max Matching");
         clearBoardButton = new JButton("Clear Board");
 
-        buttonPanel.add(addVertexButton);
-        buttonPanel.add(addEdgeButton);
-        buttonPanel.add(removeVertexButton);
-        buttonPanel.add(removeEdgeButton);
-        buttonPanel.add(setGraphButton);
-        buttonPanel.add(findMatchingButton);
-        buttonPanel.add(clearBoardButton);
-        add(buttonPanel, BorderLayout.NORTH);
+        bottomButtonPanel.add(setGraphButton);
+        bottomButtonPanel.add(findMatchingButton);
+        bottomButtonPanel.add(clearBoardButton);
+        add(bottomButtonPanel, BorderLayout.SOUTH);
 
         addVertexButton.addActionListener(e -> {
             addingEdge = false;
