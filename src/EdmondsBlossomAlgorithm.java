@@ -24,11 +24,15 @@ public class EdmondsBlossomAlgorithm {
             initialize();
             while (!free.isEmpty()) {
                 int root = free.iterator().next();
+                System.out.println("Starting BFS from root: " + root);
                 if (bfs(root)) {
                     free.remove(root);
+                    System.out.println("Augmenting path found and applied");
                 } else {
                     free.remove(root);
+                    System.out.println("No augmenting path found from root: " + root);
                 }
+                System.out.println("Current matching: " + matching);
             }
         } catch (Exception e) {
             System.err.println("Error in findMaximumMatching: " + e.getMessage());
@@ -55,7 +59,9 @@ public class EdmondsBlossomAlgorithm {
         queue.offer(root);
         while (!queue.isEmpty()) {
             int v = queue.poll();
+            System.out.println("Processing vertex: " + v);
             for (int u : graph.getNeighbors(v)) {
+                System.out.println("  Examining neighbor: " + u);
                 if (findOrGrowAugmentingPath(v, u)) {
                     return true;
                 }
@@ -72,6 +78,7 @@ public class EdmondsBlossomAlgorithm {
 
         if (label.get(u) == -1) {
             if (!matching.containsKey(u)) {
+                System.out.println("    Augmenting path found: " + v + " - " + u);
                 augmentPath(v, u);
                 return true;
             } else {
@@ -81,12 +88,14 @@ public class EdmondsBlossomAlgorithm {
                 parent.put(w, v);
                 parent.put(u, w);
                 queue.offer(w);
+                System.out.println("    Extending alternating path: " + v + " - " + u + " - " + w);
             }
         } else if (label.get(u) == 0) {
             Integer parentV = parent.get(v);
             if (parentV == null || !parentV.equals(u)) {
                 int lca = findLowestCommonAncestor(v, u);
                 if (lca != -1) {
+                    System.out.println("    Blossom found with LCA: " + lca);
                     blossomShrink(v, u, lca);
                     blossomShrink(u, v, lca);
                 }
@@ -105,6 +114,7 @@ public class EdmondsBlossomAlgorithm {
         Collections.reverse(path);
         path.add(u);
 
+        System.out.println("Augmenting path: " + path);
         graphView.setAugmentingPath(path);
         updateVisualization();
         try {
@@ -116,10 +126,24 @@ public class EdmondsBlossomAlgorithm {
         for (int i = 0; i < path.size() - 1; i += 2) {
             int x = path.get(i);
             int y = path.get(i + 1);
+
+            // Remove previous matches if they exist
+            if (matching.containsKey(x)) {
+                int oldMatch = matching.get(x);
+                matching.remove(oldMatch);
+                free.add(oldMatch);
+            }
+            if (matching.containsKey(y)) {
+                int oldMatch = matching.get(y);
+                matching.remove(oldMatch);
+                free.add(oldMatch);
+            }
+
             matching.put(x, y);
             matching.put(y, x);
             free.remove(x);
             free.remove(y);
+            System.out.println("  Added to matching: " + x + " - " + y);
         }
 
         graphView.setAugmentingPath(null);
@@ -152,6 +176,7 @@ public class EdmondsBlossomAlgorithm {
             v = parent.getOrDefault(v, lca);
         }
 
+        System.out.println("Blossom found: " + blossom);
         graphView.highlightBlossom(blossom);
         updateVisualization();
         try {
