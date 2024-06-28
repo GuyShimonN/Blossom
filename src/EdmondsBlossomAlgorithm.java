@@ -8,6 +8,8 @@ public class EdmondsBlossomAlgorithm {
     private Map<Integer, Integer> parent;
     private Queue<Integer> queue;
     private GraphView graphView;
+    private Map<Integer, Integer> base;
+    private int maxIterations = 100000;
 
     public EdmondsBlossomAlgorithm(Graph graph, GraphView graphView) {
         this.graph = graph;
@@ -17,26 +19,21 @@ public class EdmondsBlossomAlgorithm {
         this.parent = new HashMap<>();
         this.queue = new LinkedList<>();
         this.graphView = graphView;
+        this.base = new HashMap<>();
     }
 
     public Map<Integer, Integer> findMaximumMatching() {
-        try {
-            initialize();
-            while (!free.isEmpty()) {
-                int root = free.iterator().next();
-                System.out.println("Starting BFS from root: " + root);
-                if (bfs(root)) {
-                    free.remove(root);
-                    System.out.println("Augmenting path found and applied");
-                } else {
-                    free.remove(root);
-                    System.out.println("No augmenting path found from root: " + root);
-                }
-                System.out.println("Current matching: " + matching);
+        initialize();
+        int iterations = 0;
+        while (!free.isEmpty() && iterations < maxIterations) {
+            int v = free.iterator().next();
+            if (augment(v)) {
+                iterations = 0;
+            } else {
+                free.remove(v);
+                iterations++;
             }
-        } catch (Exception e) {
-            System.err.println("Error in findMaximumMatching: " + e.getMessage());
-            e.printStackTrace();
+            System.out.println("Current matching: " + matching);
         }
         return matching;
     }
@@ -47,57 +44,41 @@ public class EdmondsBlossomAlgorithm {
         updateVisualization();
     }
 
-    private boolean bfs(int root) {
+    private boolean augment(int root) {
+        System.out.println("Starting augmentation from root: " + root);
         label.clear();
         parent.clear();
+        base.clear();
         queue.clear();
 
         for (int v : graph.getVertices()) {
-            label.put(v, v == root ? 0 : -1);
+            base.put(v, v);
         }
 
+        label.put(root, 0);
         queue.offer(root);
+
         while (!queue.isEmpty()) {
             int v = queue.poll();
             System.out.println("Processing vertex: " + v);
             for (int u : graph.getNeighbors(v)) {
-                System.out.println("  Examining neighbor: " + u);
-                if (findOrGrowAugmentingPath(v, u)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private boolean findOrGrowAugmentingPath(int v, int u) {
-        if (label.get(u) == null) {
-            System.err.println("Error: Vertex " + u + " not found in label map");
-            return false;
-        }
-
-        if (label.get(u) == -1) {
-            if (!matching.containsKey(u)) {
-                System.out.println("    Augmenting path found: " + v + " - " + u);
-                augmentPath(v, u);
-                return true;
-            } else {
-                int w = matching.get(u);
-                label.put(u, 1);
-                label.put(w, 0);
-                parent.put(w, v);
-                parent.put(u, w);
-                queue.offer(w);
-                System.out.println("    Extending alternating path: " + v + " - " + u + " - " + w);
-            }
-        } else if (label.get(u) == 0) {
-            Integer parentV = parent.get(v);
-            if (parentV == null || !parentV.equals(u)) {
-                int lca = findLowestCommonAncestor(v, u);
-                if (lca != -1) {
-                    System.out.println("    Blossom found with LCA: " + lca);
-                    blossomShrink(v, u, lca);
-                    blossomShrink(u, v, lca);
+                if (base.get(u).equals(base.get(v))) continue;
+                if (!label.containsKey(base.get(u))) {
+                    if (!matching.containsKey(u)) {
+                        System.out.println("Augmenting path found: " + v + " - " + u);
+                        augmentPath(v, u);
+                        return true;
+                    }
+                    label.put(u, 1);
+                    parent.put(u, v);
+                    label.put(matching.get(u), 0);
+                    parent.put(matching.get(u), u);
+                    queue.offer(matching.get(u));
+                } else if (label.get(base.get(u)) == 0) {
+                    int lca = findLowestCommonAncestor(v, u);
+                    if (lca != -1) {
+                        blossomShrink(v, u, lca);
+                    }
                 }
             }
         }
@@ -117,26 +98,16 @@ public class EdmondsBlossomAlgorithm {
         System.out.println("Augmenting path: " + path);
         graphView.setAugmentingPath(path);
         updateVisualization();
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
 
         for (int i = 0; i < path.size() - 1; i += 2) {
             int x = path.get(i);
             int y = path.get(i + 1);
 
-            // Remove previous matches if they exist
             if (matching.containsKey(x)) {
-                int oldMatch = matching.get(x);
-                matching.remove(oldMatch);
-                free.add(oldMatch);
+                free.add(matching.get(x));
             }
             if (matching.containsKey(y)) {
-                int oldMatch = matching.get(y);
-                matching.remove(oldMatch);
-                free.add(oldMatch);
+                free.add(matching.get(y));
             }
 
             matching.put(x, y);
@@ -153,45 +124,36 @@ public class EdmondsBlossomAlgorithm {
     private int findLowestCommonAncestor(int u, int v) {
         Set<Integer> ancestors = new HashSet<>();
         while (u != -1) {
-            ancestors.add(u);
+            ancestors.add(base.get(u));
             u = parent.getOrDefault(u, -1);
         }
         while (v != -1) {
-            if (ancestors.contains(v)) return v;
+            if (ancestors.contains(base.get(v))) return base.get(v);
             v = parent.getOrDefault(v, -1);
         }
         return -1;
     }
 
     private void blossomShrink(int u, int v, int lca) {
-        List<Integer> blossom = new ArrayList<>();
-        while (u != lca) {
-            blossom.add(u);
-            u = parent.getOrDefault(u, lca);
-        }
-        blossom.add(lca);
-        Collections.reverse(blossom);
-        while (v != lca) {
-            blossom.add(v);
-            v = parent.getOrDefault(v, lca);
-        }
-
-        System.out.println("Blossom found: " + blossom);
-        graphView.highlightBlossom(blossom);
-        updateVisualization();
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        for (int vertex : blossom) {
-            if (vertex != lca) {
-                label.put(vertex, 1);
-                queue.offer(vertex);
+        System.out.println("Shrinking blossom with LCA: " + lca);
+        while (base.get(u) != lca) {
+            int blosPair = matching.get(u);
+            base.put(u, lca);
+            base.put(blosPair, lca);
+            u = parent.get(blosPair);
+            if (label.get(base.get(u)) == 1) {
+                queue.offer(u);
             }
         }
-        graphView.highlightBlossom(null);
+        while (base.get(v) != lca) {
+            int blosPair = matching.get(v);
+            base.put(v, lca);
+            base.put(blosPair, lca);
+            v = parent.get(blosPair);
+            if (label.get(base.get(v)) == 1) {
+                queue.offer(v);
+            }
+        }
     }
 
     private void updateVisualization() {
