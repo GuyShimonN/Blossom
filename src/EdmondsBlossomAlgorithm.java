@@ -9,7 +9,8 @@ public class EdmondsBlossomAlgorithm {
     private Queue<Integer> queue;
     private GraphView graphView;
     private Map<Integer, Integer> base;
-    private int maxIterations = 100000;
+    private int maxIterations = 1000;
+    private int maxPathLength = 100;  // New: limit the maximum path length
 
     public EdmondsBlossomAlgorithm(Graph graph, GraphView graphView) {
         this.graph = graph;
@@ -66,14 +67,17 @@ public class EdmondsBlossomAlgorithm {
                 if (!label.containsKey(base.get(u))) {
                     if (!matching.containsKey(u)) {
                         System.out.println("Augmenting path found: " + v + " - " + u);
-                        augmentPath(v, u);
-                        return true;
+                        if (augmentPath(v, u)) {
+                            return true;
+                        }
                     }
                     label.put(u, 1);
                     parent.put(u, v);
-                    label.put(matching.get(u), 0);
-                    parent.put(matching.get(u), u);
-                    queue.offer(matching.get(u));
+                    if (matching.containsKey(u)) {
+                        label.put(matching.get(u), 0);
+                        parent.put(matching.get(u), u);
+                        queue.offer(matching.get(u));
+                    }
                 } else if (label.get(base.get(u)) == 0) {
                     int lca = findLowestCommonAncestor(v, u);
                     if (lca != -1) {
@@ -85,12 +89,18 @@ public class EdmondsBlossomAlgorithm {
         return false;
     }
 
-    private void augmentPath(int v, int u) {
+    private boolean augmentPath(int v, int u) {
         List<Integer> path = new ArrayList<>();
         int current = v;
-        while (current != -1) {
+        int pathLength = 0;
+        while (current != -1 && pathLength < maxPathLength) {
             path.add(current);
             current = parent.getOrDefault(current, -1);
+            pathLength++;
+        }
+        if (pathLength >= maxPathLength) {
+            System.out.println("Warning: Maximum path length reached. Aborting augmentation.");
+            return false;
         }
         Collections.reverse(path);
         path.add(u);
@@ -105,9 +115,11 @@ public class EdmondsBlossomAlgorithm {
 
             if (matching.containsKey(x)) {
                 free.add(matching.get(x));
+                matching.remove(matching.get(x));
             }
             if (matching.containsKey(y)) {
                 free.add(matching.get(y));
+                matching.remove(matching.get(y));
             }
 
             matching.put(x, y);
@@ -119,6 +131,7 @@ public class EdmondsBlossomAlgorithm {
 
         graphView.setAugmentingPath(null);
         updateVisualization();
+        return true;
     }
 
     private int findLowestCommonAncestor(int u, int v) {
