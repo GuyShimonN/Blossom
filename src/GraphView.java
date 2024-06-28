@@ -1,29 +1,32 @@
 import javax.swing.*;
 import java.awt.*;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 
 class GraphView extends JPanel {
     private Graph graph;
     private Map<Integer, Integer> matchingEdges;
     private List<Integer> augmentingPath;
-    private List<Integer> blossomVertices;  // Add this to store blossom vertices
+    private List<Integer> blossomVertices;
     private Map<Integer, Color> vertexColors;
+    private Map<Integer, Integer> forest;
+    private int root;
+    private int currentVertex;
 
     public GraphView(Graph graph) {
         this.graph = graph;
         this.vertexColors = new HashMap<>();
+        this.forest = new HashMap<>();
+        this.matchingEdges = new HashMap<>();
     }
 
     public void setGraph(Graph graph) {
         this.graph = graph;
-        if (this.matchingEdges != null) {
-            this.matchingEdges.clear();
-        }
+        this.matchingEdges.clear();
         this.augmentingPath = null;
-        this.blossomVertices = null;  // Reset blossom vertices
+        this.blossomVertices = null;
         this.vertexColors.clear();
+        this.forest.clear();
         repaint();
     }
 
@@ -34,6 +37,21 @@ class GraphView extends JPanel {
 
     public void setAugmentingPath(List<Integer> augmentingPath) {
         this.augmentingPath = augmentingPath;
+        repaint();
+    }
+
+    public void setForest(Map<Integer, Integer> forest) {
+        this.forest = forest;
+        repaint();
+    }
+
+    public void setRoot(int root) {
+        this.root = root;
+        repaint();
+    }
+
+    public void setCurrentVertex(int currentVertex) {
+        this.currentVertex = currentVertex;
         repaint();
     }
 
@@ -60,62 +78,87 @@ class GraphView extends JPanel {
 
     private void drawGraph(Graphics g) {
         Graphics2D g2 = (Graphics2D) g;
+
+        // Draw forest edges
+        g2.setColor(Color.BLUE);
+        g2.setStroke(new BasicStroke(1, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 0, new float[]{5}, 0));
+        for (Map.Entry<Integer, Integer> entry : forest.entrySet()) {
+            Vertex child = graph.getVertex(entry.getKey());
+            Vertex parent = graph.getVertex(entry.getValue());
+            g2.drawLine(child.getPosition().x, child.getPosition().y, parent.getPosition().x, parent.getPosition().y);
+        }
+
+        // Draw regular edges
+        g2.setColor(Color.BLACK);
+        g2.setStroke(new BasicStroke(1));
         for (Integer vertexId : graph.getVertices()) {
             Vertex vertex = graph.getVertex(vertexId);
             Point p = vertex.getPosition();
-            if (p.x == 0 && p.y == 0) continue;
-
-            // Draw vertices
-            Color vertexColor = vertexColors.getOrDefault(vertexId, Color.WHITE);
-            g2.setColor(vertexColor);
-            int nodeRadius = 15;
-            g2.fillOval(p.x - nodeRadius, p.y - nodeRadius, 2 * nodeRadius, 2 * nodeRadius);
-            g2.setColor(Color.BLACK);
-            g2.setStroke(new BasicStroke(1));
-            g2.drawOval(p.x - nodeRadius, p.y - nodeRadius, 2 * nodeRadius, 2 * nodeRadius);
-            g2.drawString(String.valueOf(vertexId), p.x - nodeRadius / 2, p.y + nodeRadius / 2);
-
-            // Draw edges
             for (Integer neighborId : graph.getNeighbors(vertexId)) {
                 Vertex neighbor = graph.getVertex(neighborId);
                 Point q = neighbor.getPosition();
-                if (matchingEdges != null && matchingEdges.containsKey(vertexId) && matchingEdges.get(vertexId).equals(neighborId)) {
-                    g2.setColor(Color.RED);
-                    g2.setStroke(new BasicStroke(3));
-                } else if (augmentingPath != null && isInAugmentingPath(vertexId, neighborId)) {
-                    g2.setColor(Color.GREEN);
-                    g2.setStroke(new BasicStroke(1));
-                } else {
-                    g2.setColor(Color.BLACK);
-                    g2.setStroke(new BasicStroke(1));
-                }
                 g2.drawLine(p.x, p.y, q.x, q.y);
             }
         }
 
-        // Highlight blossom
-        if (blossomVertices != null) {
-            g2.setColor(Color.BLUE);
-            g2.setStroke(new BasicStroke(2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 0, new float[]{10}, 0));
-            for (int i = 0; i < blossomVertices.size() - 1; i++) {
-                Vertex u = graph.getVertex(blossomVertices.get(i));
-                Vertex v = graph.getVertex(blossomVertices.get(i + 1));
-                g2.drawLine(u.getPosition().x, u.getPosition().y, v.getPosition().x, v.getPosition().y);
+        // Draw matching edges
+        if (matchingEdges != null) {
+            g2.setColor(Color.RED);
+            g2.setStroke(new BasicStroke(3));
+            for (Map.Entry<Integer, Integer> entry : matchingEdges.entrySet()) {
+                if (entry.getKey() < entry.getValue()) {
+                    Vertex v1 = graph.getVertex(entry.getKey());
+                    Vertex v2 = graph.getVertex(entry.getValue());
+                    g2.drawLine(v1.getPosition().x, v1.getPosition().y, v2.getPosition().x, v2.getPosition().y);
+                }
             }
-            Vertex first = graph.getVertex(blossomVertices.get(0));
-            Vertex last = graph.getVertex(blossomVertices.get(blossomVertices.size() - 1));
-            g2.drawLine(first.getPosition().x, first.getPosition().y, last.getPosition().x, last.getPosition().y);
         }
-    }
 
-    private boolean isInAugmentingPath(int u, int v) {
-        if (augmentingPath == null) return false;
-        for (int i = 0; i < augmentingPath.size() - 1; i++) {
-            if ((augmentingPath.get(i) == u && augmentingPath.get(i + 1) == v) || (augmentingPath.get(i) == v && augmentingPath.get(i + 1) == u)) {
-                return true;
+        // Draw augmenting path
+        if (augmentingPath != null) {
+            g2.setColor(Color.GREEN);
+            g2.setStroke(new BasicStroke(2));
+            for (int i = 0; i < augmentingPath.size() - 1; i++) {
+                Vertex v1 = graph.getVertex(augmentingPath.get(i));
+                Vertex v2 = graph.getVertex(augmentingPath.get(i + 1));
+                g2.drawLine(v1.getPosition().x, v1.getPosition().y, v2.getPosition().x, v2.getPosition().y);
             }
         }
-        return false;
+
+        // Draw vertices
+        for (Integer vertexId : graph.getVertices()) {
+            Vertex vertex = graph.getVertex(vertexId);
+            Point p = vertex.getPosition();
+
+            if (vertexColors.containsKey(vertexId)) {
+                g2.setColor(vertexColors.get(vertexId));
+            } else if (vertexId == root) {
+                g2.setColor(Color.GREEN);
+            } else if (vertexId == currentVertex) {
+                g2.setColor(Color.ORANGE);
+            } else if (forest.containsKey(vertexId)) {
+                g2.setColor(Color.CYAN);
+            } else {
+                g2.setColor(Color.WHITE);
+            }
+
+            int nodeRadius = 15;
+            g2.fillOval(p.x - nodeRadius, p.y - nodeRadius, 2 * nodeRadius, 2 * nodeRadius);
+            g2.setColor(Color.BLACK);
+            g2.drawOval(p.x - nodeRadius, p.y - nodeRadius, 2 * nodeRadius, 2 * nodeRadius);
+            g2.drawString(String.valueOf(vertexId), p.x - 5, p.y + 5);
+        }
+
+        // Draw blossom
+        if (blossomVertices != null) {
+            g2.setColor(new Color(255, 200, 200, 100));
+            for (Integer vertexId : blossomVertices) {
+                Vertex vertex = graph.getVertex(vertexId);
+                Point p = vertex.getPosition();
+                int blossomRadius = 25;
+                g2.fillOval(p.x - blossomRadius, p.y - blossomRadius, 2 * blossomRadius, 2 * blossomRadius);
+            }
+        }
     }
 
     public int findVertexAt(Point point) {
@@ -130,10 +173,12 @@ class GraphView extends JPanel {
     }
 
     public void pickEdge(int vertexId) {
+        // This method is left empty as it's not used in the current implementation
         repaint();
     }
 
     public Integer getPickedEdgeStart() {
+        // This method is left empty as it's not used in the current implementation
         return null;
     }
 }

@@ -10,7 +10,7 @@ public class EdmondsBlossomAlgorithm {
     private GraphView graphView;
     private Map<Integer, Integer> base;
     private int maxIterations = 1000;
-    private int maxPathLength = 100;  // New: limit the maximum path length
+    private int maxPathLength = 100;
 
     public EdmondsBlossomAlgorithm(Graph graph, GraphView graphView) {
         this.graph = graph;
@@ -35,6 +35,10 @@ public class EdmondsBlossomAlgorithm {
                 iterations++;
             }
             System.out.println("Current matching: " + matching);
+            graphView.setMatchingEdges(matching);
+            graphView.setForest(parent);
+            graphView.repaint();
+            sleep(1000); // Pause for 1 second to show the current state
         }
         return matching;
     }
@@ -42,7 +46,9 @@ public class EdmondsBlossomAlgorithm {
     private void initialize() {
         matching.clear();
         free.addAll(graph.getVertices());
-        updateVisualization();
+        graphView.setMatchingEdges(matching);
+        graphView.setForest(parent);
+        graphView.repaint();
     }
 
     private boolean augment(int root) {
@@ -58,15 +64,24 @@ public class EdmondsBlossomAlgorithm {
 
         label.put(root, 0);
         queue.offer(root);
+        graphView.setRoot(root);
 
         while (!queue.isEmpty()) {
             int v = queue.poll();
             System.out.println("Processing vertex: " + v);
+            graphView.setCurrentVertex(v);
+            graphView.setForest(parent);
+            graphView.repaint();
+            sleep(500);
+
             for (int u : graph.getNeighbors(v)) {
                 if (base.get(u).equals(base.get(v))) continue;
                 if (!label.containsKey(base.get(u))) {
                     if (!matching.containsKey(u)) {
                         System.out.println("Augmenting path found: " + v + " - " + u);
+                        graphView.setAugmentingPath(constructPath(v, u));
+                        graphView.repaint();
+                        sleep(1000);
                         if (augmentPath(v, u)) {
                             return true;
                         }
@@ -78,6 +93,9 @@ public class EdmondsBlossomAlgorithm {
                         parent.put(matching.get(u), u);
                         queue.offer(matching.get(u));
                     }
+                    graphView.setForest(parent);
+                    graphView.repaint();
+                    sleep(500);
                 } else if (label.get(base.get(u)) == 0) {
                     int lca = findLowestCommonAncestor(v, u);
                     if (lca != -1) {
@@ -89,25 +107,21 @@ public class EdmondsBlossomAlgorithm {
         return false;
     }
 
-    private boolean augmentPath(int v, int u) {
+    private List<Integer> constructPath(int v, int u) {
         List<Integer> path = new ArrayList<>();
         int current = v;
-        int pathLength = 0;
-        while (current != -1 && pathLength < maxPathLength) {
+        while (current != -1) {
             path.add(current);
             current = parent.getOrDefault(current, -1);
-            pathLength++;
-        }
-        if (pathLength >= maxPathLength) {
-            System.out.println("Warning: Maximum path length reached. Aborting augmentation.");
-            return false;
         }
         Collections.reverse(path);
         path.add(u);
+        return path;
+    }
 
+    private boolean augmentPath(int v, int u) {
+        List<Integer> path = constructPath(v, u);
         System.out.println("Augmenting path: " + path);
-        graphView.setAugmentingPath(path);
-        updateVisualization();
 
         for (int i = 0; i < path.size() - 1; i += 2) {
             int x = path.get(i);
@@ -130,7 +144,6 @@ public class EdmondsBlossomAlgorithm {
         }
 
         graphView.setAugmentingPath(null);
-        updateVisualization();
         return true;
     }
 
@@ -174,6 +187,13 @@ public class EdmondsBlossomAlgorithm {
         graphView.repaint();
         try {
             Thread.sleep(500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+    private void sleep(int milliseconds) {
+        try {
+            Thread.sleep(milliseconds);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
