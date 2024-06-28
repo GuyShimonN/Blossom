@@ -11,6 +11,7 @@ public class EdmondsBlossomAlgorithm {
     private Map<Integer, Integer> base;
     private int maxIterations = 1000;
     private int maxPathLength = 100;
+    private Set<Integer> currentBlossom;
 
     public EdmondsBlossomAlgorithm(Graph graph, GraphView graphView) {
         this.graph = graph;
@@ -21,6 +22,7 @@ public class EdmondsBlossomAlgorithm {
         this.queue = new LinkedList<>();
         this.graphView = graphView;
         this.base = new HashMap<>();
+        this.currentBlossom = new HashSet<>();
     }
 
     public Map<Integer, Integer> findMaximumMatching() {
@@ -38,7 +40,7 @@ public class EdmondsBlossomAlgorithm {
             graphView.setMatchingEdges(matching);
             graphView.setForest(parent);
             graphView.repaint();
-            sleep(1000); // Pause for 1 second to show the current state
+            sleep(1000);
         }
         return matching;
     }
@@ -155,13 +157,22 @@ public class EdmondsBlossomAlgorithm {
         }
         while (v != -1) {
             if (ancestors.contains(base.get(v))) return base.get(v);
-            v = parent.getOrDefault(v, -1);
-        }
+            v = parent.getOrDefault(v, -1);        }
         return -1;
     }
 
     private void blossomShrink(int u, int v, int lca) {
         System.out.println("Shrinking blossom with LCA: " + lca);
+        currentBlossom.clear();
+        List<Integer> path1 = getPath(u, lca);
+        List<Integer> path2 = getPath(v, lca);
+        currentBlossom.addAll(path1);
+        currentBlossom.addAll(path2);
+
+        graphView.highlightBlossom(new ArrayList<>(currentBlossom));
+        graphView.repaint();
+        sleep(1000);
+
         while (base.get(u) != lca) {
             int blosPair = matching.get(u);
             base.put(u, lca);
@@ -180,17 +191,23 @@ public class EdmondsBlossomAlgorithm {
                 queue.offer(v);
             }
         }
+
+        graphView.shrinkBlossom(lca, new ArrayList<>(currentBlossom));
+        graphView.repaint();
+        sleep(1000);
     }
 
-    private void updateVisualization() {
-        graphView.setMatchingEdges(matching);
-        graphView.repaint();
-        try {
-            Thread.sleep(500);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+    private List<Integer> getPath(int start, int end) {
+        List<Integer> path = new ArrayList<>();
+        int current = start;
+        while (current != end) {
+            path.add(current);
+            current = parent.get(current);
         }
+        path.add(end);
+        return path;
     }
+
     private void sleep(int milliseconds) {
         try {
             Thread.sleep(milliseconds);

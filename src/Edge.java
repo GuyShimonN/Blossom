@@ -17,14 +17,17 @@ public class Edge {
         this.to = to;
     }
 
+    // Getter for the source vertex
     public int getFrom() {
         return from;
     }
 
+    // Getter for the destination vertex
     public int getTo() {
         return to;
     }
 
+    // Override equals method to compare edges
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
@@ -33,11 +36,13 @@ public class Edge {
         return from == edge.from && to == edge.to;
     }
 
+    // Override hashCode method for edge comparison
     @Override
     public int hashCode() {
         return Objects.hash(from, to);
     }
 
+    // Override toString method for edge representation
     @Override
     public String toString() {
         return "Edge{" + "from=" + from + ", to=" + to + '}';
